@@ -3,21 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Controle de Dinheiro</title>
+  <title>Controle de Dinheiro Diário</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 30px;
-      background-color: #f5f5f5;
+      background-color: #f0f0f0;
     }
 
     h1 {
       text-align: center;
-      color: #333;
     }
 
     .container {
-      max-width: 600px;
+      max-width: 700px;
       margin: auto;
       background: white;
       padding: 20px;
@@ -30,7 +29,8 @@
       margin-top: 15px;
     }
 
-    input[type="number"] {
+    input[type="number"],
+    select {
       width: 100%;
       padding: 8px;
       margin-top: 5px;
@@ -46,7 +46,7 @@
       cursor: pointer;
     }
 
-    .resultado, .acumulado {
+    .resultado, .acumulado, .filtro {
       margin-top: 20px;
       background: #e0ffe0;
       padding: 15px;
@@ -73,23 +73,53 @@
     <label>Pix (R$)</label>
     <input type="number" id="pix" step="0.01" />
 
-    <label>Adicionado hoje (R$)</label>
+    <label>Adicionado Hoje (R$)</label>
     <input type="number" id="adicionadoHoje" step="0.01" />
+
+    <label>Retirado Hoje (R$)</label>
+    <input type="number" id="retiradoHoje" step="0.01" />
 
     <button onclick="calcularTotal()">Registrar</button>
 
     <div class="resultado" id="resultado"></div>
 
+    <div class="filtro">
+      <h3>Filtrar por Mês/Ano</h3>
+      <label for="mes">Mês:</label>
+      <select id="mes">
+      <option value="">Todos</option>
+      <option value="01">1º Mês - Janeiro</option>
+      <option value="02">2º Mês - Fevereiro</option>
+      <option value="03">3º Mês - Março</option>
+      <option value="04">4º Mês - Abril</option>
+      <option value="05">5º Mês - Maio</option>
+      <option value="06">6º Mês - Junho</option>
+      <option value="07">7º Mês - Julho</option>
+      <option value="08">8º Mês - Agosto</option>
+      <option value="09">9º Mês - Setembro</option>
+      <option value="10">10º Mês - Outubro</option>
+      <option value="11">11º Mês - Novembro</option>
+      <option value="12">12º Mês - Dezembro</option>
+</select>
+
+      <label for="ano">Ano:</label>
+      <input type="number" id="ano" placeholder="Ex: 2025" />
+
+      <button onclick="filtrarPorData()">Filtrar</button>
+    </div>
+
     <div class="historico">
-      <h3>Histórico de Registros</h3>
+      <h3>Histórico</h3>
       <ul id="historicoLista"></ul>
     </div>
 
     <div class="acumulado" id="acumuladoTotal"></div>
+
+    <button onclick="limparHistorico()" style="background-color: red;">🗑️ Limpar Histórico</button>
   </div>
 
   <script>
-    window.onload = function () {
+    window.onload = () => {
       carregarHistorico();
     };
 
@@ -98,51 +128,72 @@
       const papel = parseFloat(document.getElementById('papel').value) || 0;
       const pix = parseFloat(document.getElementById('pix').value) || 0;
       const adicionadoHoje = parseFloat(document.getElementById('adicionadoHoje').value) || 0;
+      const retiradoHoje = parseFloat(document.getElementById('retiradoHoje').value) || 0;
 
-      const total = moedas + papel + pix + adicionadoHoje;
+      const total = moedas + papel + pix + adicionadoHoje - retiradoHoje;
 
       document.getElementById('resultado').innerHTML = `
-        <strong>Total Atual:</strong> R$ ${total.toFixed(2)}<br/>
-        <strong>Moedas:</strong> R$ ${moedas.toFixed(2)}<br/>
-        <strong>Papel:</strong> R$ ${papel.toFixed(2)}<br/>
-        <strong>Pix:</strong> R$ ${pix.toFixed(2)}<br/>
-        <strong>Adicionado Hoje:</strong> R$ ${adicionadoHoje.toFixed(2)}
+        <strong>Total do Lançamento:</strong> R$ ${total.toFixed(2)}<br/>
+        Moedas: R$ ${moedas.toFixed(2)}<br/>
+        Papel: R$ ${papel.toFixed(2)}<br/>
+        Pix: R$ ${pix.toFixed(2)}<br/>
+        Adicionado: R$ ${adicionadoHoje.toFixed(2)}<br/>
+        Retirado: R$ ${retiradoHoje.toFixed(2)}
       `;
 
-      salvarNoHistorico(moedas, papel, pix, adicionadoHoje);
+      salvarRegistro(moedas, papel, pix, adicionadoHoje, retiradoHoje);
     }
 
-    function salvarNoHistorico(moedas, papel, pix, adicionadoHoje) {
-      const data = new Date().toLocaleString();
-      const registro = { data, moedas, papel, pix, adicionadoHoje };
+    function salvarRegistro(moedas, papel, pix, adicionadoHoje, retiradoHoje) {
+      const agora = new Date();
+      const data = agora.toLocaleString();
+      const mes = String(agora.getMonth() + 1).padStart(2, '0');
+      const ano = agora.getFullYear();
 
+      const registro = { data, mes, ano, moedas, papel, pix, adicionadoHoje, retiradoHoje };
       let historico = JSON.parse(localStorage.getItem('historicoFinanceiro')) || [];
       historico.unshift(registro);
       localStorage.setItem('historicoFinanceiro', JSON.stringify(historico));
+
       carregarHistorico();
     }
 
-    function carregarHistorico() {
+    function carregarHistorico(filtrarMes = "", filtrarAno = "") {
       const lista = document.getElementById('historicoLista');
       const acumuladoDiv = document.getElementById('acumuladoTotal');
       lista.innerHTML = '';
       acumuladoDiv.innerHTML = '';
 
       const historico = JSON.parse(localStorage.getItem('historicoFinanceiro')) || [];
-
       let totalGeral = 0;
 
       historico.forEach(reg => {
-        const item = document.createElement('li');
-        const somaRegistro = reg.moedas + reg.papel + reg.pix + reg.adicionadoHoje;
-        totalGeral += somaRegistro;
+        if ((filtrarMes && reg.mes !== filtrarMes) || (filtrarAno && reg.ano != filtrarAno)) return;
 
-        item.textContent = `${reg.data} - Moedas: R$ ${reg.moedas.toFixed(2)}, Papel: R$ ${reg.papel.toFixed(2)}, Pix: R$ ${reg.pix.toFixed(2)}, Adicionado: R$ ${reg.adicionadoHoje.toFixed(2)} (Subtotal: R$ ${somaRegistro.toFixed(2)})`;
+        const subtotal = reg.moedas + reg.papel + reg.pix + reg.adicionadoHoje - reg.retiradoHoje;
+        totalGeral += subtotal;
+
+        const item = document.createElement('li');
+        item.textContent = `${reg.data} - Moedas: R$ ${reg.moedas.toFixed(2)}, Papel: R$ ${reg.papel.toFixed(2)}, Pix: R$ ${reg.pix.toFixed(2)}, Adicionado: R$ ${reg.adicionadoHoje.toFixed(2)}, Retirado: R$ ${reg.retiradoHoje.toFixed(2)} → Subtotal: R$ ${subtotal.toFixed(2)}`;
         lista.appendChild(item);
       });
 
-      acumuladoDiv.innerHTML = `<strong>Total Acumulado de Todos os Registros:</strong> R$ ${totalGeral.toFixed(2)}`;
+      acumuladoDiv.innerHTML = `<strong>Total Acumulado:</strong> R$ ${totalGeral.toFixed(2)}`;
+    }
+
+    function filtrarPorData() {
+      const mes = document.getElementById('mes').value;
+      const ano = document.getElementById('ano').value;
+      carregarHistorico(mes, ano);
+    }
+
+    function limparHistorico() {
+      if (confirm("Tem certeza que deseja apagar todo o histórico? Essa ação não pode ser desfeita.")) {
+        localStorage.removeItem('historicoFinanceiro');
+        carregarHistorico();
+      }
     }
   </script>
 </body>
 </html>
+
