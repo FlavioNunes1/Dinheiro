@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Controle de Dinheiro</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background-color: #f5f5f5;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #ccc;
+    }
+
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 15px;
+      background-color: #007bff;
+      border: none;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .resultado, .acumulado {
+      margin-top: 20px;
+      background: #e0ffe0;
+      padding: 15px;
+      border-radius: 5px;
+    }
+
+    .historico {
+      margin-top: 20px;
+      background: #fffbe0;
+      padding: 15px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Controle de Dinheiro Diário</h1>
+  <div class="container">
+    <label>Moedas (R$)</label>
+    <input type="number" id="moedas" step="0.01" />
+
+    <label>Papel (R$)</label>
+    <input type="number" id="papel" step="0.01" />
+
+    <label>Pix (R$)</label>
+    <input type="number" id="pix" step="0.01" />
+
+    <label>Adicionado hoje (R$)</label>
+    <input type="number" id="adicionadoHoje" step="0.01" />
+
+    <button onclick="calcularTotal()">Registrar</button>
+
+    <div class="resultado" id="resultado"></div>
+
+    <div class="historico">
+      <h3>Histórico de Registros</h3>
+      <ul id="historicoLista"></ul>
+    </div>
+
+    <div class="acumulado" id="acumuladoTotal"></div>
+  </div>
+
+  <script>
+    window.onload = function () {
+      carregarHistorico();
+    };
+
+    function calcularTotal() {
+      const moedas = parseFloat(document.getElementById('moedas').value) || 0;
+      const papel = parseFloat(document.getElementById('papel').value) || 0;
+      const pix = parseFloat(document.getElementById('pix').value) || 0;
+      const adicionadoHoje = parseFloat(document.getElementById('adicionadoHoje').value) || 0;
+
+      const total = moedas + papel + pix + adicionadoHoje;
+
+      document.getElementById('resultado').innerHTML = `
+        <strong>Total Atual:</strong> R$ ${total.toFixed(2)}<br/>
+        <strong>Moedas:</strong> R$ ${moedas.toFixed(2)}<br/>
+        <strong>Papel:</strong> R$ ${papel.toFixed(2)}<br/>
+        <strong>Pix:</strong> R$ ${pix.toFixed(2)}<br/>
+        <strong>Adicionado Hoje:</strong> R$ ${adicionadoHoje.toFixed(2)}
+      `;
+
+      salvarNoHistorico(moedas, papel, pix, adicionadoHoje);
+    }
+
+    function salvarNoHistorico(moedas, papel, pix, adicionadoHoje) {
+      const data = new Date().toLocaleString();
+      const registro = { data, moedas, papel, pix, adicionadoHoje };
+
+      let historico = JSON.parse(localStorage.getItem('historicoFinanceiro')) || [];
+      historico.unshift(registro);
+      localStorage.setItem('historicoFinanceiro', JSON.stringify(historico));
+      carregarHistorico();
+    }
+
+    function carregarHistorico() {
+      const lista = document.getElementById('historicoLista');
+      const acumuladoDiv = document.getElementById('acumuladoTotal');
+      lista.innerHTML = '';
+      acumuladoDiv.innerHTML = '';
+
+      const historico = JSON.parse(localStorage.getItem('historicoFinanceiro')) || [];
+
+      let totalGeral = 0;
+
+      historico.forEach(reg => {
+        const item = document.createElement('li');
+        const somaRegistro = reg.moedas + reg.papel + reg.pix + reg.adicionadoHoje;
+        totalGeral += somaRegistro;
+
+        item.textContent = `${reg.data} - Moedas: R$ ${reg.moedas.toFixed(2)}, Papel: R$ ${reg.papel.toFixed(2)}, Pix: R$ ${reg.pix.toFixed(2)}, Adicionado: R$ ${reg.adicionadoHoje.toFixed(2)} (Subtotal: R$ ${somaRegistro.toFixed(2)})`;
+        lista.appendChild(item);
+      });
+
+      acumuladoDiv.innerHTML = `<strong>Total Acumulado de Todos os Registros:</strong> R$ ${totalGeral.toFixed(2)}`;
+    }
+  </script>
+</body>
+</html>
