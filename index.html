@@ -4,17 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Controle de Dinheiro Diário</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 30px;
       background-color: #f0f0f0;
     }
-
-    h1 {
-      text-align: center;
-    }
-
     .container {
       max-width: 700px;
       margin: auto;
@@ -23,19 +21,11 @@
       border-radius: 10px;
       box-shadow: 0 0 10px #ccc;
     }
-
-    label {
-      display: block;
-      margin-top: 15px;
+    h1 { text-align: center; }
+    label { display: block; margin-top: 15px; }
+    input[type="number"], select {
+      width: 100%; padding: 8px; margin-top: 5px;
     }
-
-    input[type="number"],
-    select {
-      width: 100%;
-      padding: 8px;
-      margin-top: 5px;
-    }
-
     button {
       margin-top: 20px;
       padding: 10px 15px;
@@ -45,14 +35,12 @@
       border-radius: 5px;
       cursor: pointer;
     }
-
     .resultado, .acumulado, .filtro {
       margin-top: 20px;
       background: #e0ffe0;
       padding: 15px;
       border-radius: 5px;
     }
-
     .historico {
       margin-top: 20px;
       background: #fffbe0;
@@ -87,20 +75,20 @@
       <h3>Filtrar por Mês/Ano</h3>
       <label for="mes">Mês:</label>
       <select id="mes">
-      <option value="">Todos</option>
-      <option value="01">1º Mês - Janeiro</option>
-      <option value="02">2º Mês - Fevereiro</option>
-      <option value="03">3º Mês - Março</option>
-      <option value="04">4º Mês - Abril</option>
-      <option value="05">5º Mês - Maio</option>
-      <option value="06">6º Mês - Junho</option>
-      <option value="07">7º Mês - Julho</option>
-      <option value="08">8º Mês - Agosto</option>
-      <option value="09">9º Mês - Setembro</option>
-      <option value="10">10º Mês - Outubro</option>
-      <option value="11">11º Mês - Novembro</option>
-      <option value="12">12º Mês - Dezembro</option>
-</select>
+        <option value="">Todos</option>
+        <option value="01">1º Mês - Janeiro</option>
+        <option value="02">2º Mês - Fevereiro</option>
+        <option value="03">3º Mês - Março</option>
+        <option value="04">4º Mês - Abril</option>
+        <option value="05">5º Mês - Maio</option>
+        <option value="06">6º Mês - Junho</option>
+        <option value="07">7º Mês - Julho</option>
+        <option value="08">8º Mês - Agosto</option>
+        <option value="09">9º Mês - Setembro</option>
+        <option value="10">10º Mês - Outubro</option>
+        <option value="11">11º Mês - Novembro</option>
+        <option value="12">12º Mês - Dezembro</option>
+      </select>
 
       <label for="ano">Ano:</label>
       <input type="number" id="ano" placeholder="Ex: 2025" />
@@ -116,12 +104,12 @@
     <div class="acumulado" id="acumuladoTotal"></div>
 
     <button onclick="limparHistorico()" style="background-color: red;">🗑️ Limpar Histórico</button>
+    <button onclick="exportarParaExcel()" style="background-color: green;">📊 Exportar para Excel</button>
+    <button onclick="exportarParaPDF()" style="background-color: purple;">📄 Exportar para PDF</button>
   </div>
 
   <script>
-    window.onload = () => {
-      carregarHistorico();
-    };
+    window.onload = () => carregarHistorico();
 
     function calcularTotal() {
       const moedas = parseFloat(document.getElementById('moedas').value) || 0;
@@ -193,7 +181,58 @@
         carregarHistorico();
       }
     }
+
+    function exportarParaExcel() {
+      const historico = JSON.parse(localStorage.getItem('historicoFinanceiro')) || [];
+      const dados = historico.map(reg => {
+        const subtotal = reg.moedas + reg.papel + reg.pix + reg.adicionadoHoje - reg.retiradoHoje;
+        return {
+          Data: reg.data,
+          Moedas: reg.moedas,
+          Papel: reg.papel,
+          Pix: reg.pix,
+          Adicionado: reg.adicionadoHoje,
+          Retirado: reg.retiradoHoje,
+          Subtotal: isNaN(subtotal) ? 0 : subtotal
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(dados);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Histórico");
+
+      XLSX.writeFile(workbook, "historico_financeiro.xlsx");
+    }
+
+    async function exportarParaPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const historico = JSON.parse(localStorage.getItem('historicoFinanceiro')) || [];
+
+      const dados = historico.map(reg => {
+        const subtotal = reg.moedas + reg.papel + reg.pix + reg.adicionadoHoje - reg.retiradoHoje;
+        return [
+          reg.data,
+          `R$ ${reg.moedas.toFixed(2)}`,
+          `R$ ${reg.papel.toFixed(2)}`,
+          `R$ ${reg.pix.toFixed(2)}`,
+          `R$ ${reg.adicionadoHoje.toFixed(2)}`,
+          `R$ ${reg.retiradoHoje.toFixed(2)}`,
+          `R$ ${isNaN(subtotal) ? '0.00' : subtotal.toFixed(2)}`
+        ];
+      });
+
+      doc.setFontSize(14);
+      doc.text("Histórico Financeiro", 14, 20);
+
+      doc.autoTable({
+        startY: 30,
+        head: [["Data", "Moedas", "Papel", "Pix", "Adicionado", "Retirado", "Subtotal"]],
+        body: dados
+      });
+
+      doc.save("historico_financeiro.pdf");
+    }
   </script>
 </body>
 </html>
-
